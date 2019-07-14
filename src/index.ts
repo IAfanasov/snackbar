@@ -119,6 +119,8 @@ export class Snackbar {
     if (!wrapper) {
       wrapper = document.createElement('div')
       wrapper.className = `snackbars snackbars-${position}`
+      wrapper.onmouseenter = () => this.showAllBars()
+      wrapper.onmouseleave = () => this.stack()
       document.body.appendChild(wrapper)
     }
     return wrapper
@@ -188,26 +190,44 @@ export class Snackbar {
     this.el = el
 
     this.wrapper.appendChild(el)
+    this.stack()
+  }
+
+  stack() {
+    const { wrapper } = this
+    for (let index = 0; index < wrapper.children.length; index++) {
+      const elem = <HTMLElement>wrapper.children[index]
+      const order = wrapper.children.length - index
+      elem.style.transform = `scaleX(${1 - order / 15}) translateY(${-1 *
+        order *
+        8}px)`
+    }
+  }
+
+  showAllBars() {
+    const { wrapper } = this
+    for (let index = 0; index < wrapper.children.length - 1; index++) {
+      const elem = <HTMLElement>wrapper.children[index]
+      const order = wrapper.children.length - index - 1
+      elem.style.transform = `scale(1) translateY(${-1 *
+        order *
+        (elem.clientHeight + 20)}px)`
+    }
   }
 
   /**
    * Destory the snackbar
    */
-  async destroy() {
+  destroy() {
     const { el, wrapper } = this
     if (el) {
       this.el = undefined
       // Transition the snack away.
-      el.setAttribute('aria-hidden', 'true')
-      await new Promise(resolve => {
-        const eventName = getTransitionEvent(el)
-        if (eventName) {
-          el.addEventListener(eventName, () => resolve())
-        } else {
-          resolve()
-        }
+      el.addEventListener('animationend', () => {
+        wrapper.removeChild(el)
+        this.stack()
       })
-      wrapper.removeChild(el)
+      el.setAttribute('aria-hidden', 'true')
     }
   }
 
@@ -226,22 +246,6 @@ export class Snackbar {
       this.timeoutId = undefined
     }
   }
-}
-
-function getTransitionEvent(el: HTMLDivElement): string | undefined {
-  const transitions: { [k: string]: string } = {
-    transition: 'transitionend',
-    OTransition: 'oTransitionEnd',
-    MozTransition: 'transitionend',
-    WebkitTransition: 'webkitTransitionEnd'
-  }
-
-  for (const key of Object.keys(transitions)) {
-    if (el.style[key as any] !== undefined) {
-      return transitions[key]
-    }
-  }
-  return
 }
 
 export function createSnackbar(message: string, options?: SnackOptions) {
